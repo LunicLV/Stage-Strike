@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSBU Stage Striking</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      text-align: center;
+      padding: 15px;
+    }
+    h1 {
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-size: 1.5rem;
+    }
+    .rules {
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+
+    /* Indicador de Turnos - Banner Superior */
+    .turn-indicator {
+      max-width: 600px;
+      margin: 0 auto 20px auto;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .p1-turn { background-color: #0055ff; color: #fff; box-shadow: 0 0 10px rgba(0, 85, 255, 0.5); }
+    .p2-turn { background-color: #ff2222; color: #fff; box-shadow: 0 0 10px rgba(255, 34, 34, 0.5); }
+    .winner-pick { background-color: #00cc66; color: #fff; box-shadow: 0 0 10px rgba(0, 204, 102, 0.5); }
+
+    .section-title {
+      font-size: 1.2rem;
+      margin: 15px 0 10px 0;
+      color: #00d2ff;
+      text-transform: uppercase;
+      border-bottom: 2px solid #333;
+      display: inline-block;
+      padding-bottom: 5px;
+    }
+
+    /* Contenedor Adaptable - Grid de escenarios */
+    .stage-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr); /* 2 por fila por defecto (celular) */
+      gap: 12px;
+      max-width: 900px;
+      margin: 0 auto 20px auto;
+    }
+
+    /* En pantallas más grandes muestra más columnas automáticamente */
+    @media (min-width: 600px) {
+      .stage-container {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+    }
+
+    .stage-card {
+      background-color: #1e1e1e;
+      border: 2px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.2s, border-color 0.2s, opacity 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .stage-card:hover {
+      border-color: #00d2ff;
+    }
+    .stage-card img {
+      width: 100%;
+      height: 90px;
+      object-fit: cover;
+      display: block;
+    }
+    .stage-name {
+      padding: 8px 4px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      background-color: #252525;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Estados de baneo (cuando se hace clic) */
+    .stage-card.banned {
+      border-color: #ff4444;
+      opacity: 0.25;
+      filter: grayscale(100%);
+      pointer-events: none;
+    }
+    .stage-card.banned .stage-name {
+      background-color: #3a1010;
+      text-decoration: line-through;
+      color: #ff8888;
+    }
+
+    /* Desactivar clics en tarjetas (cuando la selección termina) */
+    .stage-card.disabled {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    /* MODAL DEL ESCENARIO SELECCIONADO (AL CENTRO) */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-content {
+      background: #1a1a1a;
+      border: 3px solid #00ff66;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 90%;
+      width: 400px;
+      box-shadow: 0 0 25px rgba(0, 255, 102, 0.4);
+      transform: scale(0.8);
+      transition: transform 0.3s ease;
+    }
+    .modal-overlay.active .modal-content {
+      transform: scale(1);
+    }
+    .modal-title {
+      font-size: 1rem;
+      color: #00ff66;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .modal-stage-img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #333;
+    }
+    .modal-stage-name {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin: 12px 0 15px 0;
+      color: #fff;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+    button {
+      padding: 10px 18px;
+      font-size: 0.9rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    .btn-next { background-color: #00d2ff; color: #000; }
+    .btn-reset { background-color: #444; color: #fff; }
+    .btn-close { background-color: #00ff66; color: #000; width: 100%; font-size: 1rem; }
+    button:hover { opacity: 0.8; }
+    button:active { transform: scale(0.98); }
+  </style>
+</head>
+<body>
+
+  <h1>Ultimate Stage Striking</h1>
+  <p class="rules">3 STOCKS | 7 MINS | 3 BANS | NO HAZARDS | 1-2-1 STRIKE | CHAR FIRST | NO DSR</p>
+
+  <!-- Banner de Turno Activo -->
+  <div id="turnBanner" class="turn-indicator p1-turn">Jugador 1: Banea 1 Escenario</div>
+
+  <div class="section-title">Starters</div>
+  <div class="stage-container" id="startersGrid"></div>
+
+  <!-- Sección de Counterpicks (oculta en el Game 1) -->
+  <div id="counterpicksSection" style="display: none;">
+    <div class="section-title">Counterpicks</div>
+    <div class="stage-container" id="counterpicksGrid"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-next" onclick="startNextGame()">Siguiente Juego (Game 2+)</button>
+    <button class="btn-reset" onclick="resetMatch()">Reiniciar Match (Game 1)</button>
+  </div>
+
+  <!-- Modal para mostrar la Stage seleccionada en el centro de la pantalla -->
+  <div class="modal-overlay" id="selectedStageModal">
+    <div class="modal-content">
+      <div class="modal-title">Escenario Seleccionado</div>
+      <img id="modalImg" class="modal-stage-img" src="" alt="Selected Stage">
+      <div id="modalName" class="modal-stage-name"></div>
+      <button class="btn-close" onclick="closeModal()">Aceptar</button>
+    </div>
+  </div>
+
+  <script>
+    // --- DATOS DE LOS ESCENARIOS CON TUS ENLACES DIRECTOS ACTUALIZADOS ---
+    const starters = [
+      { id: "bf", name: "Battlefield", img: "https://ssb.wiki.gallery/images/thumb/8/86/SSBU-Battlefield.png/1280px-SSBU-Battlefield.png" },
+      { id: "sbf", name: "Small Battlefield", img: "https://ssb.wiki.gallery/images/thumb/7/7e/SSBU-Small-Battlefield.jpg/1200px-SSBU-Small-Battlefield.jpg" },
+      { id: "sv", name: "Smashville", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQm-BzbfbzWZq6pEFL6Rn4Vu3bFGCx5XSQ__iix95Hm5yOa_GqPiwTGW_z&s=10" },
+      { id: "tc", name: "Town and City", img: "https://ssb.wiki.gallery/images/thumb/2/26/SSBU-Town_and_City.png/1200px-SSBU-Town_and_City.png" },
+      { id: "ps2", name: "Pokemon Stadium 2", img: "https://ssb.wiki.gallery/images/thumb/7/73/SSBU-Pok%C3%A9mon_Stadium_2.png/1200px-SSBU-Pok%C3%A9mon_Stadium_2.png" }
+    ];
+
+    const counterpicks = [
+      { id: "fd", name: "Final Destination", img: "https://ssb.wiki.gallery/images/thumb/9/91/SSBU-Final_Destination.jpg/1200px-SSBU-Final_Destination.jpg" },
+      { id: "hb", name: "Hollow Bastion", img: "https://images.wikidexcdn.net/mwuploads/esssbwiki/thumb/9/91/latest/20211005165806/Basti%C3%B3n_Hueco_SSBU.png/1200px-Basti%C3%B3n_Hueco_SSBU.png" },
+      { id: "kalos", name: "Kalos Pokemon League", img: "https://ssb.wiki.gallery/images/thumb/b/bf/SSBU-Kalos_Pok%C3%A9mon_League.png/1280px-SSBU-Kalos_Pok%C3%A9mon_League.png" }
+    ];
+    // ----------------------------------------------------------------------
+
+    // Variables de estado del sistema
+    let isGame1 = true;
+    let strikeStep = 0; // Para Game 1: 0 (P1 ban 1), 1 (P2 ban 1), 2 (P2 ban 2), 3 (P1 ban final)
+    let game2BansLeft = 3; // En Game 2+ el ganador banea 3 escenarios
+    let bannedStages = new Set();
+    const allStages = [...starters, ...counterpicks];
+
+    // Inicializar la página
+    function init() {
+      renderGrids();
+      updateStatus();
+    }
+
+    // Dibujar los escenarios en pantalla
+    function renderGrids() {
+      const startersGrid = document.getElementById("startersGrid");
+      const counterpicksGrid = document.getElementById("counterpicksGrid");
+      
+      startersGrid.innerHTML = "";
+      counterpicksGrid.innerHTML = "";
+
+      // Añadir Starters
+      starters.forEach(stage => startersGrid.appendChild(createCard(stage)));
+      // Añadir Counterpicks
+      counterpicks.forEach(stage => counterpicksGrid.appendChild(createCard(stage)));
+
+      // Mostrar/Ocultar counterpicks según el juego actual
+      document.getElementById("counterpicksSection").style.display = isGame1 ? "none" : "block";
+    }
+
+    // Crear la tarjeta HTML para cada escenario
+    function createCard(stage) {
+      const card = document.createElement("div");
+      card.className = "stage-card";
+      card.id = "card-" + stage.id;
+
+      // Mantener el estado de baneo al redibujar
+      if (bannedStages.has(stage.id)) {
+        card.classList.add("banned");
+      }
+
+      card.innerHTML = `
+        <img src="${stage.img}" alt="${stage.name}">
+        <div class="stage-name">${stage.name}</div>
+      `;
+
+      card.onclick = () => handleStageClick(stage.id);
+      return card;
+    }
+
+    // Manejar el clic en un escenario
+    function handleStageClick(stageId) {
+      if (bannedStages.has(stageId)) return;
+
+      // Fase de Selección (después de los baneos en Game 2+)
+      if (!isGame1 && game2BansLeft === 0) {
+        const selectedStage = allStages.find(s => s.id === stageId);
+        showSelectedModal(selectedStage);
+        return;
+      }
+
+      // Fase de Baneo
+      bannedStages.add(stageId);
+      document.getElementById("card-" + stageId).classList.add("banned");
+
+      if (isGame1) {
+        strikeStep++;
+        checkGame1AutoSelect(); // Game 1 banea automáticamente el último
+      } else {
+        game2BansLeft--;
+      }
+
+      updateStatus();
+    }
+
+    // (Solo Game 1) - Si queda 1 escenario Starter, seleccionarlo automáticamente
+    function checkGame1AutoSelect() {
+      // 1-2-1 banea 4 de 5 escenarios
+      if (strikeStep === 4) {
+        const remaining = starters.find(s => !bannedStages.has(s.id));
+        if (remaining) {
+          showSelectedModal(remaining);
+        }
+      }
+    }
+
+    // Mostrar el modal central con el escenario seleccionado
+    function showSelectedModal(stage) {
+      document.getElementById("modalImg").src = stage.img;
+      document.getElementById("modalName").innerText = stage.name;
+      document.getElementById("selectedStageModal").classList.add("active");
+      disableAllCards();
+    }
+
+    // Cerrar el modal central
+    function closeModal() {
+      document.getElementById("selectedStageModal").classList.remove("active");
+    }
+
+    // Actualizar el Banner de Turno y los colores
+    function updateStatus() {
+      const banner = document.getElementById("turnBanner");
+      banner.className = "turn-indicator "; // Limpiar clases de color anteriores
+
+      if (isGame1) {
+        // Flujo del Game 1: 1-2-1
+        if (strikeStep === 0) {
+          banner.classList.add("p1-turn");
+          banner.innerText = "Jugador 1: Banea 1 Escenario";
+        } else if (strikeStep === 1) {
+          banner.classList.add("p2-turn");
+          banner.innerText = "Jugador 2: Banea el 1er Escenario (1/2)";
+        } else if (strikeStep === 2) {
+          banner.classList.add("p2-turn");
+          banner.innerText = "Jugador 2: Banea el 2do Escenario (2/2)";
+        } else if (strikeStep === 3) {
+          banner.classList.add("p1-turn");
+          banner.innerText = "Jugador 1: Banea el último Escenario";
+        } else {
+          banner.classList.add("winner-pick");
+          banner.innerText = "¡Escenario Seleccionado!";
+        }
+      } else {
+        // Flujo del Game 2+: Ganador banea 3, Perdedor elige
+        if (game2BansLeft > 0) {
+          banner.classList.add("p1-turn");
+          banner.innerText = `Ganador (Match): Banea ${game2BansLeft} Escenario(s)`;
+        } else {
+          banner.classList.add("p2-turn");
+          banner.innerText = "Perdedor (Match): Haz clic en el escenario que vas a jugar";
+        }
+      }
+    }
+
+    // Desactivar todas las tarjetas (cuando la selección termina)
+    function disableAllCards() {
+      document.querySelectorAll(".stage-card").forEach(card => card.classList.add("disabled"));
+    }
+
+    // Reiniciar para el Game 2+ (Ganador banea 3, Perdedor elige)
+    function startNextGame() {
+      isGame1 = false;
+      game2BansLeft = 3;
+      bannedStages.clear();
+      closeModal();
+      renderGrids();
+      updateStatus();
+    }
+
+    // Reiniciar por completo el Match (Volver al Game 1)
+    function resetMatch() {
+      isGame1 = true;
+      strikeStep = 0;
+      bannedStages.clear();
+      closeModal();
+      renderGrids();
+      updateStatus();
+    }
+
+    // Arrancar el sistema
+    init();
+  </script>
+</body>
+</html>
